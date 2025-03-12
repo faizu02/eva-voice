@@ -54,6 +54,11 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -75,9 +80,12 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        ripple: "ripple 1s cubic-bezier(0, 0, 0.2, 1) infinite",
+        ripple: "ripple 1.5s cubic-bezier(0, 0, 0.2, 1) infinite",
         "fade-in": "fade-in 0.2s ease-out",
       },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+      }
     },
   },
   plugins: [require("tailwindcss-animate")],
