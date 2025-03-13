@@ -348,8 +348,8 @@ export const VoiceAssistant = () => {
               </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
-              <div className="max-w-3xl mx-auto">
+            <div className="fixed bottom-0 left-0 right-0 p-1 bg-gradient-to-t from-background to-transparent">
+              <div className="max-w-3xl m-auto">
                 <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
                   <button
                     onClick={toggleInputMode}
