@@ -1,7 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Keyboard, Send, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Client } from '@gradio/client';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -24,8 +26,29 @@ export const VoiceAssistant = () => {
   const [inputMode, setInputMode] = useState<'voice' | 'keyboard'>('voice');
   const [textInput, setTextInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [gradioClient, setGradioClient] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const [interimTranscript, setInterimTranscript] = useState('');
+
+  // Initialize Gradio client
+  useEffect(() => {
+    const initClient = async () => {
+      try {
+        const client = await Client.connect("Faizal2805/expo");
+        setGradioClient(client);
+      } catch (error) {
+        console.error("Failed to connect to Gradio:", error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to the AI service",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    initClient();
+  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -59,8 +82,11 @@ export const VoiceAssistant = () => {
         .map(result => result.transcript)
         .join('');
       
+      // Update interim transcript for UI feedback
+      setInterimTranscript(transcript);
+      
       if (event.results[0].isFinal) {
-        setTextInput(transcript);
+        setInterimTranscript('');
         sendVoiceMessage(transcript);
       }
     };
@@ -93,73 +119,83 @@ export const VoiceAssistant = () => {
     } else {
       recognitionRef.current?.stop();
       setIsRecording(false);
+      setInterimTranscript('');
     }
   };
 
   const sendVoiceMessage = async (transcript: string) => {
     if (!transcript.trim()) return;
-
-    setMessages(prev => [...prev, { role: 'user', content: transcript }]);
-
-    try {
-      setIsLoading(true);
-
-      const responseText = await sendMessage(transcript);
-
-      setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-
-      speakResponse(responseText);
+    
+    // In voice mode, we don't add to the chat messages
+    // We just process the voice input and speak the response
+    if (inputMode === 'voice') {
+      try {
+        setIsLoading(true);
+        const responseText = await sendMessageToGradio(transcript);
+        speakResponse(responseText);
+      } catch (error) {
+        console.error('API error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to get a response. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // In keyboard mode, add to chat and process normally
+      setMessages(prev => [...prev, { role: 'user', content: transcript }]);
       
-    } catch (error) {
-      console.error('API error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to get a response. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+      try {
+        setIsLoading(true);
+        const responseText = await sendMessageToGradio(transcript);
+        setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+      } catch (error) {
+        console.error('API error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to get a response. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  // Updated sendMessage function with correct URL and improved CORS handling
-  const sendMessage = async (message: string): Promise<string> => {
-    const url = "https://Faizal2805-expo.hf.space/api/predict/";
-
-    const payload = {
-      data: [
-        message,
-        "Hello!!", // system_message
-        1,         // max_tokens
-        0.1,       // temperature
-        0.1        // top_p
-      ]
-    };
+  const sendMessageToGradio = async (message: string): Promise<string> => {
+    if (!gradioClient) {
+      toast({
+        title: "Service Unavailable",
+        description: "AI service is not connected. Please try again later.",
+        variant: "destructive"
+      });
+      return "Sorry, I'm not connected to my AI service right now.";
+    }
 
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        mode: "cors", // Enable CORS
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*", // Allow all origins
-          "Access-Control-Allow-Methods": "POST, GET, OPTIONS", // Allow common methods
-          "Access-Control-Allow-Headers": "Content-Type" // Allow content-type header
-        },
-        body: JSON.stringify(payload)
+      const result = await gradioClient.predict("/chat", {
+        message: message,
+        system_message: "Hello!!",
+        max_tokens: 100,
+        temperature: 0.7,
+        top_p: 0.9,
       });
 
-      const result = await response.json();
-      console.log(result.data);
+      console.log("Gradio response:", result.data);
       return result.data.toString();
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error calling Gradio API:", error);
       return "Sorry, I couldn't process your request at the moment.";
     }
   };
 
   const speakResponse = (text: string) => {
     if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech first
+      window.speechSynthesis.cancel();
+      
       const speech = new SpeechSynthesisUtterance();
       speech.text = text;
       speech.volume = 1;
@@ -175,6 +211,7 @@ export const VoiceAssistant = () => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+    setInterimTranscript('');
   };
 
   const handleSendMessage = async () => {
@@ -186,9 +223,7 @@ export const VoiceAssistant = () => {
 
       try {
         setIsLoading(true);
-
-        const responseText = await sendMessage(userMessage);
-
+        const responseText = await sendMessageToGradio(userMessage);
         setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
       } catch (error) {
         console.error('API error:', error);
@@ -222,6 +257,112 @@ export const VoiceAssistant = () => {
               ? 'Press the microphone button and start speaking' 
               : 'Type your message and press enter'}
           </p>
+        </div>
+        
+        {inputMode === 'keyboard' ? (
+          <div className="flex-1 overflow-auto mb-20">
+            <div className="space-y-4 max-w-3xl mx-auto">
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "flex w-max max-w-[80%] rounded-lg px-4 py-3",
+                    message.role === 'user'
+                      ? "ml-auto bg-blue-500 text-white"
+                      : "bg-muted"
+                  )}
+                >
+                  {message.content}
+                </div>
+              ))}
+              {isLoading && (
+                <div className="bg-muted w-max max-w-[80%] rounded-lg px-4 py-3">
+                  <div className="flex space-x-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce"></div>
+                    <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></div>
+                    <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]"></div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center mb-20">
+            <div className="relative">
+              <Globe className="w-32 h-32 text-blue-500 animate-pulse" />
+              {isRecording && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="bg-blue-500/20 w-40 h-40 rounded-full animate-ping absolute"></div>
+                  <div className="bg-blue-500/40 w-32 h-32 rounded-full animate-ping absolute" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="bg-blue-500/60 w-24 h-24 rounded-full animate-ping absolute" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              )}
+            </div>
+            {interimTranscript && (
+              <div className="absolute bottom-40 left-0 right-0 text-center">
+                <div className="inline-block bg-blue-500 text-white px-4 py-2 rounded-lg max-w-[80%]">
+                  {interimTranscript}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
+          <div className="max-w-3xl mx-auto">
+            {inputMode === 'keyboard' ? (
+              <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type your message..."
+                  className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none"
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!textInput.trim() || isLoading}
+                  className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={toggleInputMode}
+                  className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-center items-center space-x-4">
+                <button
+                  onClick={toggleRecording}
+                  className={cn(
+                    "p-6 rounded-full flex items-center justify-center transition-colors",
+                    isRecording
+                      ? "bg-red-500 hover:bg-red-600 text-white"
+                      : "bg-blue-500 hover:bg-blue-600 text-white"
+                  )}
+                  disabled={isLoading}
+                >
+                  {isRecording ? (
+                    <MicOff className="h-8 w-8" />
+                  ) : (
+                    <Mic className="h-8 w-8" />
+                  )}
+                </button>
+                <button
+                  onClick={toggleInputMode}
+                  className="p-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  <Keyboard className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
