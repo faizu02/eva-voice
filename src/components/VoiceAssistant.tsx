@@ -179,9 +179,9 @@ export const VoiceAssistant = () => {
           // In voice mode, we use speech synthesis to speak the response
           if (inputMode === 'voice') {
             const utterance = new SpeechSynthesisUtterance(responseText);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
+            utterance.rate = 0.8;
+            utterance.pitch = 0.9;
+            utterance.volume = 1.5;
             window.speechSynthesis.speak(utterance);
           }
         } catch (error) {
