@@ -255,7 +255,7 @@ export const VoiceAssistant = () => {
         {inputMode === 'voice' ? (
           // Voice Mode UI
           <div className="flex flex-col items-center justify-center">
-            <div className={`relative w-40 h-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
+            <div className={`relative w-40 h-40 mt-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
               <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
               <div className={`absolute inset-4 rounded-full ${isRecording ? 'bg-red-200 animate-pulse' : 'bg-blue-200'} opacity-20`}></div>
               <div className={`absolute inset-8 rounded-full ${isRecording ? 'bg-red-300 animate-ping' : 'bg-blue-300'} opacity-20`}></div>
@@ -286,7 +286,7 @@ export const VoiceAssistant = () => {
               </div>
             )}
 
-            <div className="flex space-x-4 mt-80">
+            <div className="flex space-x-4 mt-40">
               <button
                 onClick={toggleRecording}
                 className={cn(
