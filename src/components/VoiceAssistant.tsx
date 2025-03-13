@@ -254,6 +254,9 @@ export const VoiceAssistant = () => {
 
         {inputMode === 'voice' ? (
           // Voice Mode UI
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
           <div className="flex flex-col items-center justify-center">
             <div className={`relative w-40 h-40 mt-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
               <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
@@ -310,6 +313,9 @@ export const VoiceAssistant = () => {
                 <Keyboard className="h-6 w-6" />
               </button>
             </div>
+          </div>
+          </div>
+          </div>
           </div>
         ) : (
           // Keyboard Mode UI
