@@ -286,7 +286,7 @@ export const VoiceAssistant = () => {
               </div>
             )}
 
-            <div className="flex space-x-4 mt-8">
+            <div className="flex space-x-4 mt-80">
               <button
                 onClick={toggleRecording}
                 className={cn(
