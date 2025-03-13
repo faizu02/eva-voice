@@ -81,7 +81,7 @@ export const VoiceAssistant = () => {
       });
 
       console.log("📥 Gradio response:", result.data);
-      return result.data.toString();
+      return Array.isArray(result.data) ? result.data[0] : result.data.toString();
     } catch (error) {
       console.error("❌ Error calling Gradio API:", error);
       return "Sorry, I couldn't process your request at the moment.";
