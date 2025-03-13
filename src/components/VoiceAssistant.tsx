@@ -75,8 +75,8 @@ export const VoiceAssistant = () => {
       const result = await gradioClient.predict("/chat", {
         message: message,
         system_message: "Hello!!",
-        max_tokens: 100,
-        temperature: 0.7,
+        max_tokens: 200,
+        temperature: 0.6,
         top_p: 0.9,
       });
 
