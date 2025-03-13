@@ -4,6 +4,7 @@ import { Mic, MicOff, Keyboard, Send, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { Client } from '@gradio/client';
+import './VoiceAssistant.css';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -166,20 +167,17 @@ export const VoiceAssistant = () => {
         // Stop recognition temporarily to process the response
         recognition.stop();
         
-        // Add user message to the conversation if in keyboard mode
-        if (inputMode === 'keyboard') {
-          setMessages(prev => [...prev, { role: 'user', content: finalTranscript }]);
-        }
+        setMessages(prev => [...prev, { role: 'user', content: finalTranscript }]);
         
         try {
           setIsLoading(true);
           const responseText = await sendMessageToGradio(finalTranscript);
           
-          // Add assistant response to the conversation if in keyboard mode
-          if (inputMode === 'keyboard') {
-            setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-          } else {
-            // In voice mode, we use speech synthesis to speak the response
+          // Add assistant response to the conversation
+          setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+          
+          // In voice mode, we use speech synthesis to speak the response
+          if (inputMode === 'voice') {
             const utterance = new SpeechSynthesisUtterance(responseText);
             utterance.rate = 1.0;
             utterance.pitch = 1.0;
@@ -257,19 +255,29 @@ export const VoiceAssistant = () => {
         {inputMode === 'voice' ? (
           // Voice Mode UI
           <div className="flex flex-col items-center justify-center">
-            <div className="globe-container mb-8">
-              <div className="globe-ripple"></div>
-              <Globe className="text-blue-500 h-20 w-20" />
+            <div className={`relative w-40 h-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
+              <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
+              <div className={`absolute inset-4 rounded-full ${isRecording ? 'bg-red-200 animate-pulse' : 'bg-blue-200'} opacity-20`}></div>
+              <div className={`absolute inset-8 rounded-full ${isRecording ? 'bg-red-300 animate-ping' : 'bg-blue-300'} opacity-20`}></div>
+              {isRecording ? (
+                <div className="z-10 text-red-600">
+                  <MicOff className="w-16 h-16" />
+                </div>
+              ) : (
+                <div className="z-10 text-blue-600">
+                  <Mic className="w-16 h-16" />
+                </div>
+              )}
             </div>
             
             {interimTranscript && (
-              <div className="text-center mb-8 animate-pulse">
+              <div className="text-center mb-8 animate-pulse mt-8">
                 <p className="text-lg text-muted-foreground">{interimTranscript}</p>
               </div>
             )}
             
             {isLoading && (
-              <div className="text-center mb-8">
+              <div className="text-center mb-8 mt-8">
                 <div className="flex space-x-2 justify-center">
                   <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce"></div>
                   <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></div>
@@ -278,7 +286,7 @@ export const VoiceAssistant = () => {
               </div>
             )}
 
-            <div className="flex space-x-4 mt-4">
+            <div className="flex space-x-4 mt-8">
               <button
                 onClick={toggleRecording}
                 className={cn(
@@ -292,9 +300,6 @@ export const VoiceAssistant = () => {
                   <MicOff className="h-6 w-6" />
                 ) : (
                   <Mic className="h-6 w-6" />
-                )}
-                {isRecording && (
-                  <span className="absolute -bottom-6 text-sm font-medium text-red-500">Recording...</span>
                 )}
               </button>
               

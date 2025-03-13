@@ -1,0 +1,27 @@
+
+/* Ripple animations for the voice mic UI */
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.recording .animate-ping {
+  animation: ripple 1.5s infinite ease-in-out;
+}
+
+/* Make sure the main container takes full height */
+.min-h-screen {
+  min-height: 100vh;
+}
+
+/* Make the scrollable message area work correctly */
+.overflow-auto {
+  overflow-y: auto;
+  max-height: calc(100vh - 240px);
+}
