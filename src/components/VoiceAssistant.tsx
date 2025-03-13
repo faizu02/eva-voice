@@ -287,9 +287,9 @@ export const VoiceAssistant = () => {
               </div>
             )}
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
-              <div className="text-center">
+              <div className="text-center  mt-40">
                 <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
-            <div className="flex space-x-4 mt-40">
+            <div className="flex space-x-4">
               <button
                 onClick={toggleRecording}
                 className={cn(
@@ -348,8 +348,8 @@ export const VoiceAssistant = () => {
               </div>
             </div>
 
-            <div className="fixed bottom-0 left-100 right-100 p-1 bg-gradient-to-t from-background to-transparent">
-              <div className=" p-auto">
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
+              <div className="max-w-3xl mx-auto">
                 <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
                   <button
                     onClick={toggleInputMode}
