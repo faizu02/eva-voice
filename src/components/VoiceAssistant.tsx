@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Keyboard, Send, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -86,14 +85,12 @@ export const VoiceAssistant = () => {
 
   const toggleRecording = () => {
     if (!isRecording) {
-      // Start recording
       const isSupported = setupSpeechRecognition();
       if (!isSupported) return;
       
       recognitionRef.current?.start();
       setIsRecording(true);
     } else {
-      // Stop recording
       recognitionRef.current?.stop();
       setIsRecording(false);
     }
@@ -101,20 +98,16 @@ export const VoiceAssistant = () => {
 
   const sendVoiceMessage = async (transcript: string) => {
     if (!transcript.trim()) return;
-    
-    // Add user message to chat
+
     setMessages(prev => [...prev, { role: 'user', content: transcript }]);
-    
+
     try {
       setIsLoading(true);
-      
-      // Call the API using the provided code
+
       const responseText = await sendMessage(transcript);
-      
-      // Add assistant response to chat
+
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-      
-      // Speak the response
+
       speakResponse(responseText);
       
     } catch (error) {
@@ -129,9 +122,9 @@ export const VoiceAssistant = () => {
     }
   };
 
-  // Function to send message to API
+  // Updated sendMessage function with correct URL and improved CORS handling
   const sendMessage = async (message: string): Promise<string> => {
-    const url = "https://hf.space/embed/Faizal2805/expo/api/predict/";
+    const url = "https://Faizal2805-expo.hf.space/api/predict/";
 
     const payload = {
       data: [
@@ -146,14 +139,18 @@ export const VoiceAssistant = () => {
     try {
       const response = await fetch(url, {
         method: "POST",
+        mode: "cors", // Enable CORS
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*", // Allow all origins
+          "Access-Control-Allow-Methods": "POST, GET, OPTIONS", // Allow common methods
+          "Access-Control-Allow-Headers": "Content-Type" // Allow content-type header
         },
         body: JSON.stringify(payload)
       });
 
       const result = await response.json();
-      console.log(result.data); // Display response data
+      console.log(result.data);
       return result.data.toString();
     } catch (error) {
       console.error("Error:", error);
@@ -165,7 +162,7 @@ export const VoiceAssistant = () => {
     if ('speechSynthesis' in window) {
       const speech = new SpeechSynthesisUtterance();
       speech.text = text;
-      speech.volume = 1; // Loud voice
+      speech.volume = 1;
       speech.rate = 1;
       speech.pitch = 1;
       window.speechSynthesis.speak(speech);
@@ -184,19 +181,15 @@ export const VoiceAssistant = () => {
     if (textInput.trim()) {
       const userMessage = textInput;
       setTextInput('');
-      
-      // Add user message to chat
+
       setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-      
+
       try {
         setIsLoading(true);
-        
-        // Call the API using the provided code
+
         const responseText = await sendMessage(userMessage);
-        
-        // Add assistant response to chat
+
         setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-        
       } catch (error) {
         console.error('API error:', error);
         toast({
@@ -229,112 +222,6 @@ export const VoiceAssistant = () => {
               ? 'Press the microphone button and start speaking' 
               : 'Type your message and press enter'}
           </p>
-        </div>
-      </div>
-      
-      {inputMode === 'keyboard' && (
-        <div className="flex-1 container max-w-4xl mx-auto px-4 pb-24 overflow-y-auto space-y-6">
-          <div className="flex flex-col space-y-6">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "message-container",
-                  message.role === "user" ? "user-message" : "assistant-message"
-                )}
-              >
-                {message.content}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-      )}
-      
-      {inputMode === 'voice' && (
-        <div className="flex-1 container max-w-4xl mx-auto px-4 pb-24 flex items-center justify-center">
-          <div className="globe-container">
-            <Globe 
-              size={120} 
-              className={cn(
-                "text-blue-500 transition-all duration-500",
-                isRecording ? "animate-pulse scale-110" : "opacity-60"
-              )} 
-            />
-            {isRecording && (
-              <div className="globe-ripple"></div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#121212] to-transparent pt-10 pb-6">
-        <div className="container max-w-4xl mx-auto px-4">
-          {inputMode === 'voice' ? (
-            <div className="glass p-6 rounded-xl flex justify-center items-center relative">
-              <button
-                onClick={toggleRecording}
-                className={cn(
-                  "relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg",
-                  isRecording ? "bg-gradient-to-r from-red-500 to-pink-500" : "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
-                )}
-              >
-                {isRecording ? (
-                  <MicOff className="w-6 h-6 text-white z-10" />
-                ) : (
-                  <Mic className="w-6 h-6 text-white z-10" />
-                )}
-                <div
-                  className={cn(
-                    "absolute w-full h-full rounded-full",
-                    isRecording && "animate-ripple bg-red-500/50"
-                  )}
-                />
-              </button>
-              
-              <button 
-                onClick={toggleInputMode}
-                className="absolute right-6 bottom-6 w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 flex items-center justify-center transition-all duration-300 shadow-lg"
-              >
-                <Keyboard className="w-5 h-5 text-white" />
-              </button>
-            </div>
-          ) : (
-            <div className="glass p-4 rounded-xl flex items-center gap-3 relative">
-              <div className="flex-1">
-                <textarea
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your message here..."
-                  className="w-full bg-transparent border-none focus:outline-none resize-none text-white placeholder-white/40 min-h-[60px] max-h-[200px] overflow-y-auto"
-                  rows={1}
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!textInput.trim() || isLoading}
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md",
-                    textInput.trim() && !isLoading
-                      ? "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600" 
-                      : "bg-gray-500/50 cursor-not-allowed"
-                  )}
-                >
-                  <Send className="w-5 h-5 text-white" />
-                </button>
-                
-                <button 
-                  onClick={toggleInputMode}
-                  className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 flex items-center justify-center transition-all duration-300 shadow-md"
-                >
-                  <Mic className="w-5 h-5 text-white" />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
