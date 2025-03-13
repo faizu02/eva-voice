@@ -9,6 +9,7 @@ interface Message {
   content: string;
 }
 
+// Define SpeechRecognition for TypeScript compatibility
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -34,10 +35,9 @@ export const VoiceAssistant = () => {
     const initClient = async () => {
       try {
         const client = await Client.connect("Faizal2805/expo");
-        console.log("✅ Gradio client connected:", client);
         setGradioClient(client);
       } catch (error) {
-        console.error("❌ Failed to connect to Gradio:", error);
+        console.error("Failed to connect to Gradio:", error);
         toast({
           title: "Connection Error",
           description: "Failed to connect to the AI service",
@@ -49,13 +49,109 @@ export const VoiceAssistant = () => {
     initClient();
   }, []);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const setupSpeechRecognition = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast({
+        title: "Speech Recognition Not Supported",
+        description: "Your browser doesn't support speech recognition",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognitionAPI();
+
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0])
+        .map(result => result.transcript)
+        .join('');
+
+      setInterimTranscript(transcript);
+
+      if (event.results[0].isFinal) {
+        setInterimTranscript('');
+        sendVoiceMessage(transcript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error', event.error);
+      setIsRecording(false);
+      toast({
+        title: "Error",
+        description: `Speech recognition error: ${event.error}`,
+        variant: "destructive"
+      });
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    return true;
+  };
+
+  const toggleRecording = () => {
+    if (!isRecording) {
+      const isSupported = setupSpeechRecognition();
+      if (!isSupported) return;
+
+      recognitionRef.current?.start();
+      setIsRecording(true);
+    } else {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      setInterimTranscript('');
+    }
+  };
+
+  const sendVoiceMessage = async (transcript: string) => {
+    if (!transcript.trim()) return;
+
+    if (inputMode === 'voice') {
+      try {
+        setIsLoading(true);
+        const responseText = await sendMessageToGradio(transcript);
+        speakResponse(responseText);
+      } catch (error) {
+        console.error('API error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to get a response. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setMessages(prev => [...prev, { role: 'user', content: transcript }]);
+
+      try {
+        setIsLoading(true);
+        const responseText = await sendMessageToGradio(transcript);
+        setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+      } catch (error) {
+        console.error('API error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to get a response. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const sendMessageToGradio = async (message: string): Promise<string> => {
@@ -69,7 +165,6 @@ export const VoiceAssistant = () => {
     }
 
     try {
-      console.log("📤 Sending message to Gradio:", message);
       const result = await gradioClient.predict("/chat", {
         message: message,
         system_message: "Hello!!",
@@ -78,12 +173,33 @@ export const VoiceAssistant = () => {
         top_p: 0.9,
       });
 
-      console.log("📥 Gradio response:", result.data);
       return result.data.toString();
     } catch (error) {
-      console.error("❌ Error calling Gradio API:", error);
+      console.error("Error calling Gradio API:", error);
       return "Sorry, I couldn't process your request at the moment.";
     }
+  };
+
+  const speakResponse = (text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+
+      const speech = new SpeechSynthesisUtterance();
+      speech.text = text;
+      speech.volume = 1;
+      speech.rate = 1;
+      speech.pitch = 1;
+      window.speechSynthesis.speak(speech);
+    }
+  };
+
+  const toggleInputMode = () => {
+    setInputMode(inputMode === 'voice' ? 'keyboard' : 'voice');
+    setIsRecording(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setInterimTranscript('');
   };
 
   const handleSendMessage = async () => {
@@ -98,7 +214,7 @@ export const VoiceAssistant = () => {
         const responseText = await sendMessageToGradio(userMessage);
         setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
       } catch (error) {
-        console.error('❌ API error:', error);
+        console.error('API error:', error);
         toast({
           title: "Error",
           description: "Failed to get a response. Please try again.",
@@ -118,70 +234,34 @@ export const VoiceAssistant = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="container max-w-4xl mx-auto p-4 pt-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 bg-clip-text text-transparent">
-            EVA
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            {inputMode === 'voice'
-              ? 'Press the microphone button and start speaking'
-              : 'Type your message and press enter'}
-          </p>
-        </div>
+    <div className="flex items-center space-x-4">
+      <button
+        onClick={toggleRecording}
+        className={cn(
+          "p-6 rounded-full",
+          isRecording ? "bg-red-500 text-white" : "bg-blue-500 text-white"
+        )}
+        disabled={isLoading}
+      >
+        {isRecording ? <MicOff className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+      </button>
 
-        <div className="flex-1 overflow-auto mb-20">
-          <div className="space-y-4 max-w-3xl mx-auto">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "flex w-max max-w-[80%] rounded-lg px-4 py-3",
-                  message.role === 'user'
-                    ? "ml-auto bg-blue-500 text-white"
-                    : "bg-muted"
-                )}
-              >
-                {message.content}
-              </div>
-            ))}
-            {isLoading && (
-              <div className="bg-muted w-max max-w-[80%] rounded-lg px-4 py-3">
-                <div className="flex space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce"></div>
-                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></div>
-                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]"></div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
+      <button
+        onClick={toggleInputMode}
+        className="p-4 rounded-full bg-gray-200 hover:bg-gray-300"
+      >
+        <Keyboard className="h-6 w-6" />
+      </button>
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your message..."
-                className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none"
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!textInput.trim() || isLoading}
-                className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <input
+        type="text"
+        value={textInput}
+        onChange={(e) => setTextInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Type your message..."
+        className="bg-muted border-0 focus:ring-0"
+        disabled={isLoading}
+      />
     </div>
   );
 };
