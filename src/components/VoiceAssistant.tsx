@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Keyboard, Send, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ export const VoiceAssistant = () => {
   const recognitionRef = useRef<any>(null);
   const [interimTranscript, setInterimTranscript] = useState('');
 
+  // Initialize Gradio client
   useEffect(() => {
     const initClient = async () => {
       try {
@@ -45,10 +47,11 @@ export const VoiceAssistant = () => {
         });
       }
     };
-
+    
     initClient();
   }, []);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -96,24 +99,6 @@ export const VoiceAssistant = () => {
         setIsLoading(true);
         const responseText = await sendMessageToGradio(userMessage);
         setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-
-        // Speak the response
-        if (inputMode === 'voice') {
-          window.speechSynthesis.cancel(); // Stop any existing speech
-
-          const utterance = new SpeechSynthesisUtterance(responseText);
-          utterance.rate = 0.8;
-          utterance.pitch = 0.9;
-          utterance.volume = 1.5;
-
-          const voices = window.speechSynthesis.getVoices();
-          const maleVoice = voices.find(voice => voice.name.includes('Male') || voice.name.includes('David'));
-          if (maleVoice) {
-            utterance.voice = maleVoice;
-          }
-
-          window.speechSynthesis.speak(utterance);
-        }
       } catch (error) {
         console.error('❌ API error:', error);
         toast({
@@ -134,9 +119,10 @@ export const VoiceAssistant = () => {
     }
   };
 
+  // Initialize speech recognition
   const initSpeechRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
+    
     if (!SpeechRecognition) {
       toast({
         title: "Not Supported",
@@ -176,30 +162,28 @@ export const VoiceAssistant = () => {
       setInterimTranscript(interimTranscript);
 
       if (finalTranscript) {
+        console.log("🗣️ Final transcript:", finalTranscript);
+        
+        // Stop recognition temporarily to process the response
         recognition.stop();
+        
         setMessages(prev => [...prev, { role: 'user', content: finalTranscript }]);
-
+        
         try {
           setIsLoading(true);
           const responseText = await sendMessageToGradio(finalTranscript);
-
+          
+          // Add assistant response to the conversation
           setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-
-          window.speechSynthesis.cancel(); // Stop any existing speech
-
-          const utterance = new SpeechSynthesisUtterance(responseText);
-          utterance.rate = 0.8;
-          utterance.pitch = 0.9;
-          utterance.volume = 1.5;
-
-          const voices = window.speechSynthesis.getVoices();
-          const maleVoice = voices.find(voice => voice.name.includes('Male') || voice.name.includes('David'));
-          if (maleVoice) {
-            utterance.voice = maleVoice;
+          
+          // In voice mode, we use speech synthesis to speak the response
+          if (inputMode === 'voice') {
+            const utterance = new SpeechSynthesisUtterance(responseText);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            window.speechSynthesis.speak(utterance);
           }
-
-          window.speechSynthesis.speak(utterance);
-
         } catch (error) {
           console.error('❌ API error:', error);
           toast({
@@ -210,7 +194,8 @@ export const VoiceAssistant = () => {
         } finally {
           setIsLoading(false);
           setInterimTranscript('');
-
+          
+          // Restart recognition
           if (isRecording) {
             recognition.start();
           }
@@ -241,12 +226,14 @@ export const VoiceAssistant = () => {
   };
 
   const toggleInputMode = () => {
+    // If switching from voice to keyboard
     if (inputMode === 'voice') {
       if (isRecording && recognitionRef.current) {
         recognitionRef.current.stop();
       }
       setInputMode('keyboard');
     } else {
+      // Switching from keyboard to voice
       setInputMode('voice');
     }
   };
@@ -264,6 +251,128 @@ export const VoiceAssistant = () => {
               : 'Type your message and press enter'}
           </p>
         </div>
+
+        {inputMode === 'voice' ? (
+          // Voice Mode UI
+          <div className="flex flex-col items-center justify-center">
+            <div className={`relative w-40 h-40 mt-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
+              <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
+              <div className={`absolute inset-4 rounded-full ${isRecording ? 'bg-red-200 animate-pulse' : 'bg-blue-200'} opacity-20`}></div>
+              <div className={`absolute inset-8 rounded-full ${isRecording ? 'bg-red-300 animate-ping' : 'bg-blue-300'} opacity-20`}></div>
+              {isRecording ? (
+                <div className="z-10 text-red-600">
+                  <MicOff className="w-16 h-16" />
+                </div>
+              ) : (
+                <div className="z-10 text-blue-600">
+                  <Mic className="w-16 h-16" />
+                </div>
+              )}
+            </div>
+            
+            {interimTranscript && (
+              <div className="text-center mb-8 animate-pulse mt-8">
+                <p className="text-lg text-muted-foreground">{interimTranscript}</p>
+              </div>
+            )}
+            
+            {isLoading && (
+              <div className="text-center mb-8 mt-8">
+                <div className="flex space-x-2 justify-center">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce"></div>
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex space-x-4 mt-40">
+              <button
+                onClick={toggleRecording}
+                className={cn(
+                  "p-4 rounded-full flex items-center justify-center",
+                  isRecording 
+                    ? "bg-red-500 text-white hover:bg-red-600" 
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                )}
+              >
+                {isRecording ? (
+                  <MicOff className="h-6 w-6" />
+                ) : (
+                  <Mic className="h-6 w-6" />
+                )}
+              </button>
+              
+              <button
+                onClick={toggleInputMode}
+                className="p-4 rounded-full bg-muted text-foreground hover:bg-muted/80"
+              >
+                <Keyboard className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Keyboard Mode UI
+          <>
+            <div className="flex-1 overflow-auto mb-20">
+              <div className="space-y-4 max-w-3xl mx-auto">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "flex w-max max-w-[80%] rounded-lg px-4 py-3",
+                      message.role === 'user'
+                        ? "ml-auto bg-blue-500 text-white"
+                        : "bg-muted"
+                    )}
+                  >
+                    {message.content}
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="bg-muted w-max max-w-[80%] rounded-lg px-4 py-3">
+                    <div className="flex space-x-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce"></div>
+                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></div>
+                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]"></div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
+                  <button
+                    onClick={toggleInputMode}
+                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                  >
+                    <Mic className="h-5 w-5" />
+                  </button>
+                  
+                  <input
+                    type="text"
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type your message..."
+                    className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none"
+                    disabled={isLoading}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!textInput.trim() || isLoading}
+                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
