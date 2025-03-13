@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Keyboard, Send, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,12 +31,15 @@ export const VoiceAssistant = () => {
   const recognitionRef = useRef<any>(null);
   const [interimTranscript, setInterimTranscript] = useState('');
 
+  // Initialize Gradio client
   useEffect(() => {
     const initClient = async () => {
       try {
         const client = await Client.connect("Faizal2805/expo");
+        console.log("✅ Gradio client connected:", client);
         setGradioClient(client);
       } catch (error) {
+        console.error("❌ Failed to connect to Gradio:", error);
         toast({
           title: "Connection Error",
           description: "Failed to connect to the AI service",
@@ -43,9 +47,11 @@ export const VoiceAssistant = () => {
         });
       }
     };
+    
     initClient();
   }, []);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -65,6 +71,7 @@ export const VoiceAssistant = () => {
     }
 
     try {
+      console.log("📤 Sending message to Gradio:", message);
       const result = await gradioClient.predict("/chat", {
         message: message,
         system_message: "Hello!!",
@@ -73,8 +80,10 @@ export const VoiceAssistant = () => {
         top_p: 0.9,
       });
 
+      console.log("📥 Gradio response:", result.data);
       return Array.isArray(result.data) ? result.data[0] : result.data.toString();
     } catch (error) {
+      console.error("❌ Error calling Gradio API:", error);
       return "Sorry, I couldn't process your request at the moment.";
     }
   };
@@ -90,6 +99,13 @@ export const VoiceAssistant = () => {
         setIsLoading(true);
         const responseText = await sendMessageToGradio(userMessage);
         setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+      } catch (error) {
+        console.error('❌ API error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to get a response. Please try again.",
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
@@ -103,9 +119,10 @@ export const VoiceAssistant = () => {
     }
   };
 
+  // Initialize speech recognition
   const initSpeechRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
+    
     if (!SpeechRecognition) {
       toast({
         title: "Not Supported",
@@ -120,8 +137,15 @@ export const VoiceAssistant = () => {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onend = () => setIsRecording(false);
+    recognition.onstart = () => {
+      setIsRecording(true);
+      console.log("🎤 Voice recognition started");
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      console.log("🎤 Voice recognition ended");
+    };
 
     recognition.onresult = async (event: any) => {
       let interimTranscript = '';
@@ -138,15 +162,21 @@ export const VoiceAssistant = () => {
       setInterimTranscript(interimTranscript);
 
       if (finalTranscript) {
+        console.log("🗣️ Final transcript:", finalTranscript);
+        
+        // Stop recognition temporarily to process the response
         recognition.stop();
+        
         setMessages(prev => [...prev, { role: 'user', content: finalTranscript }]);
-
+        
         try {
           setIsLoading(true);
           const responseText = await sendMessageToGradio(finalTranscript);
-
+          
+          // Add assistant response to the conversation
           setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
-
+          
+          // In voice mode, we use speech synthesis to speak the response
           if (inputMode === 'voice') {
             const utterance = new SpeechSynthesisUtterance(responseText);
             utterance.rate = 0.8;
@@ -154,9 +184,18 @@ export const VoiceAssistant = () => {
             utterance.volume = 1.5;
             window.speechSynthesis.speak(utterance);
           }
+        } catch (error) {
+          console.error('❌ API error:', error);
+          toast({
+            title: "Error",
+            description: "Failed to get a response. Please try again.",
+            variant: "destructive"
+          });
         } finally {
           setIsLoading(false);
           setInterimTranscript('');
+          
+          // Restart recognition
           if (isRecording) {
             recognition.start();
           }
@@ -164,7 +203,10 @@ export const VoiceAssistant = () => {
       }
     };
 
-    recognition.onerror = () => setIsRecording(false);
+    recognition.onerror = (event: any) => {
+      console.error('❌ Recognition error:', event.error);
+      setIsRecording(false);
+    };
 
     return recognition;
   };
@@ -176,9 +218,6 @@ export const VoiceAssistant = () => {
 
     if (!recognitionRef.current) return;
 
-    // Stop any ongoing speech when mic is clicked
-    window.speechSynthesis.cancel();
-
     if (isRecording) {
       recognitionRef.current.stop();
     } else {
@@ -187,12 +226,14 @@ export const VoiceAssistant = () => {
   };
 
   const toggleInputMode = () => {
+    // If switching from voice to keyboard
     if (inputMode === 'voice') {
       if (isRecording && recognitionRef.current) {
         recognitionRef.current.stop();
       }
       setInputMode('keyboard');
     } else {
+      // Switching from keyboard to voice
       setInputMode('voice');
     }
   };
@@ -212,47 +253,131 @@ export const VoiceAssistant = () => {
         </div>
 
         {inputMode === 'voice' ? (
+          // Voice Mode UI
+          
           <div className="flex flex-col items-center justify-center">
-            <div
-              className={`relative w-40 h-40 mt-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}
-            >
+            <div className={`relative w-40 h-40 mt-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
+              <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
+              <div className={`absolute inset-4 rounded-full ${isRecording ? 'bg-red-200 animate-pulse' : 'bg-blue-200'} opacity-20`}></div>
+              <div className={`absolute inset-8 rounded-full ${isRecording ? 'bg-red-300 animate-ping' : 'bg-blue-300'} opacity-20`}></div>
               {isRecording ? (
-                <MicOff className="w-16 h-16 text-red-600" />
+                <div className="z-10 text-red-600">
+                  <MicOff className="w-16 h-16" />
+                </div>
               ) : (
-                <Mic className="w-16 h-16 text-blue-600" />
+                <div className="z-10 text-blue-600">
+                  <Mic className="w-16 h-16" />
+                </div>
               )}
             </div>
-          </div>
-        ) : (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
-            <div className="max-w-3xl mx-auto">
-              <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
-                <button
-                  onClick={toggleInputMode}
-                  className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
-                >
-                  <Mic className="h-5 w-5" />
-                </button>
-
-                <input
-                  type="text"
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your message..."
-                  className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none"
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!textInput.trim() || isLoading}
-                  className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
-                >
-                  <Send className="h-5 w-5" />
-                </button>
+            
+            {interimTranscript && (
+              <div className="text-center mb-8 animate-pulse mt-8">
+                <p className="text-lg text-muted-foreground">{interimTranscript}</p>
               </div>
+            )}
+            
+            {isLoading && (
+              <div className="text-center mb-8 mt-8">
+                <div className="flex space-x-2 justify-center">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce"></div>
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+              </div>
+            )}
+            <div className="fixed bottom-0 left-100 right-100 p-4 bg-gradient pt-20">
+              <div className="text-center  mt-40">
+                <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
+            <div className="flex space-x-4">
+              <button
+                onClick={toggleRecording}
+                className={cn(
+                  "p-4 rounded-full flex items-center justify-center",
+                  isRecording 
+                    ? "bg-red-500 text-white hover:bg-red-600" 
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                )}
+              >
+                {isRecording ? (
+                  <MicOff className="h-6 w-6" />
+                ) : (
+                  <Mic className="h-6 w-6" />
+                )}
+              </button>
+              
+              <button
+                onClick={toggleInputMode}
+                className="p-4 rounded-full bg-muted text-foreground hover:bg-muted/80"
+              >
+                <Keyboard className="h-6 w-6" />
+              </button>
             </div>
           </div>
+          </div>
+          </div>
+          </div>
+        ) : (
+          // Keyboard Mode UI
+          <>
+            <div className="flex-1 overflow-auto mb-20">
+              <div className="space-y-4 max-w-3xl mx-auto">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "flex w-max max-w-[80%] rounded-lg px-4 py-3",
+                      message.role === 'user'
+                        ? "ml-auto bg-blue-500 text-white"
+                        : "bg-muted"
+                    )}
+                  >
+                    {message.content}
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="bg-muted w-max max-w-[80%] rounded-lg px-4 py-3">
+                    <div className="flex space-x-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce"></div>
+                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></div>
+                      <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]"></div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
+                  <button
+                    onClick={toggleInputMode}
+                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                  >
+                    <Mic className="h-5 w-5" />
+                  </button>
+                  
+                  <input
+                    type="text"
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type your message..."
+                    className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none"
+                    disabled={isLoading}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!textInput.trim() || isLoading}
+                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
