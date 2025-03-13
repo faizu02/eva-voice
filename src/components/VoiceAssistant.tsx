@@ -2,12 +2,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Keyboard, Send, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Client } from "@gradio/client";
 import { toast } from '@/hooks/use-toast';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+// Define the SpeechRecognition interface to fix TypeScript errors
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
 }
 
 export const VoiceAssistant = () => {
@@ -19,7 +26,7 @@ export const VoiceAssistant = () => {
   const [textInput, setTextInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -40,8 +47,8 @@ export const VoiceAssistant = () => {
       return false;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognitionAPI();
     
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -101,17 +108,8 @@ export const VoiceAssistant = () => {
     try {
       setIsLoading(true);
       
-      // Call the API
-      const client = await Client.connect("Faizal2805/expo");
-      const result = await client.predict("/chat", { 		
-        message: transcript, 		
-        system_message: "Hello!!", 		
-        max_tokens: 1, 		
-        temperature: 0.1, 		
-        top_p: 0.1, 
-      });
-      
-      const responseText = result.data.toString();
+      // Call the API using the provided code
+      const responseText = await sendMessage(transcript);
       
       // Add assistant response to chat
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
@@ -128,6 +126,38 @@ export const VoiceAssistant = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to send message to API
+  const sendMessage = async (message: string): Promise<string> => {
+    const url = "https://hf.space/embed/Faizal2805/expo/api/predict/";
+
+    const payload = {
+      data: [
+        message,
+        "Hello!!", // system_message
+        1,         // max_tokens
+        0.1,       // temperature
+        0.1        // top_p
+      ]
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      console.log(result.data); // Display response data
+      return result.data.toString();
+    } catch (error) {
+      console.error("Error:", error);
+      return "Sorry, I couldn't process your request at the moment.";
     }
   };
 
@@ -161,17 +191,8 @@ export const VoiceAssistant = () => {
       try {
         setIsLoading(true);
         
-        // Call the API
-        const client = await Client.connect("Faizal2805/expo");
-        const result = await client.predict("/chat", { 		
-          message: userMessage, 		
-          system_message: "Hello!!", 		
-          max_tokens: 1, 		
-          temperature: 0.1, 		
-          top_p: 0.1, 
-        });
-        
-        const responseText = result.data.toString();
+        // Call the API using the provided code
+        const responseText = await sendMessage(userMessage);
         
         // Add assistant response to chat
         setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
