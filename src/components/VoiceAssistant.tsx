@@ -77,34 +77,31 @@ export const VoiceAssistant = () => {
 
   const sendMessageToGradio = async (message: string): Promise<string> => {
     if (!gradioClient) {
-        await initializeClient(); // Try reconnecting before showing the error
-        if (!gradioClient) {
-            toast({
-                title: "Service Unavailable",
-                description: "AI service is not connected. Please try again later.",
-                variant: "destructive"
-            });
-            return "Sorry, I'm not connected to my AI service right now.";
-        }
+      toast({
+        title: "Service Unavailable",
+        description: "AI service is not connected. Please try again later.",
+        variant: "destructive"
+      });
+      return "Sorry, I'm not connected to my AI service right now.";
     }
 
     try {
-        console.log("📤 Sending message to Gradio:", message);
-        const result = await gradioClient.predict("/chat", {
-            message: message,
-            system_message: "Hello!!",
-            max_tokens: 100,
-            temperature: 0.6,
-            top_p: 0.9,
-        });
+      console.log("📤 Sending message to Gradio:", message);
+      const result = await gradioClient.predict("/chat", {
+        message: message,
+        system_message: "Hello!!",
+        max_tokens: 100,
+        temperature: 0.6,
+        top_p: 0.9,
+      });
 
-        console.log("📥 Gradio response:", result);
-        return Array.isArray(result) ? result[0] : result.toString();
+      console.log("📥 Gradio response:", result.data);
+      return Array.isArray(result.data) ? result.data[0] : result.data.toString();
     } catch (error) {
-        console.error("❌ Error communicating with Gradio:", error);
-        return "Sorry, I couldn't process your request at the moment.";
+      console.error("❌ Error calling Gradio API:", error);
+      return "Sorry, I couldn't process your request at the moment.";
     }
-};
+  };
 
   const handleSendMessage = async () => {
     if (textInput.trim()) {
