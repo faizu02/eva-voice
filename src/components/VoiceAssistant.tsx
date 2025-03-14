@@ -104,8 +104,6 @@ export const VoiceAssistant = () => {
         return "Sorry, there was an error processing your request.";
     }
 };
-
-
       console.log("📥 Gradio response:", result.data);
       return Array.isArray(result.data) ? result.data[0] : result.data.toString();
     } catch (error) {
