@@ -30,6 +30,7 @@ export const VoiceAssistant = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const [interimTranscript, setInterimTranscript] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Initialize Gradio client
   useEffect(() => {
@@ -49,6 +50,20 @@ export const VoiceAssistant = () => {
     };
     
     initClient();
+  }, []);
+
+  // Speech synthesis speaking status tracking
+  useEffect(() => {
+    const handleSpeechStart = () => setIsSpeaking(true);
+    const handleSpeechEnd = () => setIsSpeaking(false);
+    
+    speechSynthesis.addEventListener('start', handleSpeechStart);
+    speechSynthesis.addEventListener('end', handleSpeechEnd);
+    
+    return () => {
+      speechSynthesis.removeEventListener('start', handleSpeechStart);
+      speechSynthesis.removeEventListener('end', handleSpeechEnd);
+    };
   }, []);
 
   // Scroll to bottom when messages change
@@ -119,6 +134,14 @@ export const VoiceAssistant = () => {
     }
   };
 
+  // Stop any ongoing speech synthesis
+  const stopSpeaking = () => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
   // Initialize speech recognition
   const initSpeechRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -140,6 +163,8 @@ export const VoiceAssistant = () => {
     recognition.onstart = () => {
       setIsRecording(true);
       console.log("🎤 Voice recognition started");
+      // Clear any previous transcript when starting new recognition
+      setInterimTranscript('');
     };
 
     recognition.onend = () => {
@@ -164,9 +189,13 @@ export const VoiceAssistant = () => {
       if (finalTranscript) {
         console.log("🗣️ Final transcript:", finalTranscript);
         
-        // Stop recognition temporarily to process the response
+        // Stop recognition to process this complete input and prevent multiple recognitions
         recognition.stop();
         
+        // Clear interim transcript when we have final
+        setInterimTranscript('');
+        
+        // Add user message to conversation
         setMessages(prev => [...prev, { role: 'user', content: finalTranscript }]);
         
         try {
@@ -177,7 +206,7 @@ export const VoiceAssistant = () => {
           setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
           
           // In voice mode, we use speech synthesis to speak the response
-          if (inputMode === 'voice') {
+          if (inputMode === 'voice' && !isSpeaking) {
             const utterance = new SpeechSynthesisUtterance(responseText);
             utterance.rate = 0.8;
             utterance.pitch = 0.9;
@@ -193,12 +222,6 @@ export const VoiceAssistant = () => {
           });
         } finally {
           setIsLoading(false);
-          setInterimTranscript('');
-          
-          // Restart recognition
-          if (isRecording) {
-            recognition.start();
-          }
         }
       }
     };
@@ -212,6 +235,9 @@ export const VoiceAssistant = () => {
   };
 
   const toggleRecording = () => {
+    // Stop any ongoing speech synthesis first
+    stopSpeaking();
+    
     if (!recognitionRef.current) {
       recognitionRef.current = initSpeechRecognition();
     }
@@ -226,6 +252,9 @@ export const VoiceAssistant = () => {
   };
 
   const toggleInputMode = () => {
+    // Stop any ongoing speech
+    stopSpeaking();
+    
     // If switching from voice to keyboard
     if (inputMode === 'voice') {
       if (isRecording && recognitionRef.current) {
@@ -254,23 +283,27 @@ export const VoiceAssistant = () => {
 
         {inputMode === 'voice' ? (
           // Voice Mode UI
-          
           <div className="flex flex-col items-center justify-center">
-            <div className={`relative w-40 h-40 mt-40 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
-              <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
-              <div className={`absolute inset-4 rounded-full ${isRecording ? 'bg-red-200 animate-pulse' : 'bg-blue-200'} opacity-20`}></div>
-              <div className={`absolute inset-8 rounded-full ${isRecording ? 'bg-red-300 animate-ping' : 'bg-blue-300'} opacity-20`}></div>
-              {isRecording ? (
-                <div className="z-10 text-red-600">
-                  <MicOff className="w-16 h-16" />
+            <div className="relative">
+              <div className="absolute -inset-2 rounded-lg bg-[conic-gradient(at_bottom_right,_var(--tw-gradient-stops))] from-gray-600 via-fuchsia-600 to-blue-600 opacity-50 blur-2xl"></div>
+              <div className="relative flex w-full items-center justify-center border border-zinc-700 rounded-lg bg-zinc-900 p-4">
+                <div className={`relative w-40 h-40 mt-20 mb-20 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
+                  <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
+                  <div className={`absolute inset-4 rounded-full ${isRecording ? 'bg-red-200 animate-pulse' : 'bg-blue-200'} opacity-20`}></div>
+                  <div className={`absolute inset-8 rounded-full ${isRecording ? 'bg-red-300 animate-ping' : 'bg-blue-300'} opacity-20`}></div>
+                  {isRecording ? (
+                    <div className="z-10 text-red-600">
+                      <MicOff className="w-16 h-16" />
+                    </div>
+                  ) : (
+                    <div className="z-10 text-blue-600">
+                      <Mic className="w-16 h-16" />
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="z-10 text-blue-600">
-                  <Mic className="w-16 h-16" />
-                </div>
-              )}
+              </div>
             </div>
-            
+
             {interimTranscript && (
               <div className="text-center mb-8 animate-pulse mt-8">
                 <p className="text-lg text-muted-foreground">{interimTranscript}</p>
@@ -286,36 +319,37 @@ export const VoiceAssistant = () => {
                 </div>
               </div>
             )}
-            <div className="fixed bottom-0 left-100 right-100 p-4 bg-gradient pt-20">
-              <div className="text-center  mt-40">
+            
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient pt-20">
+              <div className="text-center mt-40">
                 <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
-            <div className="flex space-x-4">
-              <button
-                onClick={toggleRecording}
-                className={cn(
-                  "p-4 rounded-full flex items-center justify-center",
-                  isRecording 
-                    ? "bg-red-500 text-white hover:bg-red-600" 
-                    : "bg-blue-500 text-white hover:bg-blue-600"
-                )}
-              >
-                {isRecording ? (
-                  <MicOff className="h-6 w-6" />
-                ) : (
-                  <Mic className="h-6 w-6" />
-                )}
-              </button>
-              
-              <button
-                onClick={toggleInputMode}
-                className="p-4 rounded-full bg-muted text-foreground hover:bg-muted/80"
-              >
-                <Keyboard className="h-6 w-6" />
-              </button>
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={toggleRecording}
+                      className={cn(
+                        "p-4 rounded-full flex items-center justify-center",
+                        isRecording 
+                          ? "bg-red-500 text-white hover:bg-red-600" 
+                          : "bg-blue-500 text-white hover:bg-blue-600"
+                      )}
+                    >
+                      {isRecording ? (
+                        <MicOff className="h-6 w-6" />
+                      ) : (
+                        <Mic className="h-6 w-6" />
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={toggleInputMode}
+                      className="p-4 rounded-full bg-muted text-foreground hover:bg-muted/80"
+                    >
+                      <Keyboard className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          </div>
-          </div>
           </div>
         ) : (
           // Keyboard Mode UI
@@ -350,30 +384,33 @@ export const VoiceAssistant = () => {
 
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
               <div className="max-w-3xl mx-auto">
-                <div className="flex items-center space-x-2 bg-muted p-2 rounded-lg">
-                  <button
-                    onClick={toggleInputMode}
-                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
-                  >
-                    <Mic className="h-5 w-5" />
-                  </button>
-                  
-                  <input
-                    type="text"
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type your message..."
-                    className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none"
-                    disabled={isLoading}
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={!textInput.trim() || isLoading}
-                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send className="h-5 w-5" />
-                  </button>
+                <div className="relative">
+                  <div className="absolute -inset-2 rounded-lg bg-[conic-gradient(at_bottom_right,_var(--tw-gradient-stops))] from-gray-600 via-fuchsia-600 to-blue-600 opacity-50 blur-2xl"></div>
+                  <div className="relative flex items-center space-x-2 bg-muted p-2 rounded-lg border border-zinc-700 bg-zinc-900">
+                    <button
+                      onClick={toggleInputMode}
+                      className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                    >
+                      <Mic className="h-5 w-5" />
+                    </button>
+                    
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Type your message..."
+                      className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none"
+                      disabled={isLoading}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!textInput.trim() || isLoading}
+                      className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
