@@ -284,7 +284,7 @@ export const VoiceAssistant = () => {
         {inputMode === 'voice' ? (
           // Voice Mode UI
           <div className="flex flex-col items-center justify-center">
-  <div className="relative flex w-full items-center justify-center border border-zinc-700 rounded-lg bg-zinc-900 p-4">
+  <div className="relative flex items-center justify-center border border-zinc-700 rounded-lg bg-zinc-900 p-4">
     <div className={`relative w-40 h-40 mt-20 mb-20 flex items-center justify-center ${isRecording ? 'recording' : ''}`}>
       <div className={`absolute inset-0 rounded-full ${isRecording ? 'bg-red-100' : 'bg-blue-100'} opacity-20`}></div>
       <div className={`absolute inset-4 rounded-full ${isRecording ? 'bg-red-200 animate-pulse' : 'bg-blue-200'} opacity-20`}></div>
@@ -355,7 +355,8 @@ export const VoiceAssistant = () => {
         ) : (
           // Keyboard Mode UI
           <>
-            <div className="flex-1 overflow-auto bg-zinc-900 mb-20">
+            <div className=" bg-zinc-900 p-0 m-0">
+            <div className="flex-1 overflow-auto mb-20">
               <div className="space-y-4 max-w-3xl mx-auto">
                 {messages.map((message, index) => (
                   <div
@@ -381,6 +382,7 @@ export const VoiceAssistant = () => {
                 )}
                 <div ref={messagesEndRef} />
               </div>
+            </div>
             </div>
 
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
