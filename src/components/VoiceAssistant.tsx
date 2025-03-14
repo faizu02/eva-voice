@@ -98,19 +98,13 @@ export const VoiceAssistant = () => {
             top_p: 0.9,
         });
 
-        return result;
+        console.log("📥 Gradio response:", result);
+        return Array.isArray(result) ? result[0] : result.toString();
     } catch (error) {
         console.error("❌ Error communicating with Gradio:", error);
-        return "Sorry, there was an error processing your request.";
+        return "Sorry, I couldn't process your request at the moment.";
     }
 };
-      console.log("📥 Gradio response:", result.data);
-      return Array.isArray(result.data) ? result.data[0] : result.data.toString();
-    } catch (error) {
-      console.error("❌ Error calling Gradio API:", error);
-      return "Sorry, I couldn't process your request at the moment.";
-    }
-  };
 
   const handleSendMessage = async () => {
     if (textInput.trim()) {
