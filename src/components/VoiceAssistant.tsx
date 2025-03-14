@@ -77,23 +77,34 @@ export const VoiceAssistant = () => {
 
   const sendMessageToGradio = async (message: string): Promise<string> => {
     if (!gradioClient) {
-      toast({
-        title: "Service Unavailable",
-        description: "AI service is not connected. Please try again later.",
-        variant: "destructive"
-      });
-      return "Sorry, I'm not connected to my AI service right now.";
+        await initializeClient(); // Try reconnecting before showing the error
+        if (!gradioClient) {
+            toast({
+                title: "Service Unavailable",
+                description: "AI service is not connected. Please try again later.",
+                variant: "destructive"
+            });
+            return "Sorry, I'm not connected to my AI service right now.";
+        }
     }
 
     try {
-      console.log("📤 Sending message to Gradio:", message);
-      const result = await gradioClient.predict("/chat", {
-        message: message,
-        system_message: "Hello!!",
-        max_tokens: 100,
-        temperature: 0.6,
-        top_p: 0.9,
-      });
+        console.log("📤 Sending message to Gradio:", message);
+        const result = await gradioClient.predict("/chat", {
+            message: message,
+            system_message: "Hello!!",
+            max_tokens: 100,
+            temperature: 0.6,
+            top_p: 0.9,
+        });
+
+        return result;
+    } catch (error) {
+        console.error("❌ Error communicating with Gradio:", error);
+        return "Sorry, there was an error processing your request.";
+    }
+};
+
 
       console.log("📥 Gradio response:", result.data);
       return Array.isArray(result.data) ? result.data[0] : result.data.toString();
