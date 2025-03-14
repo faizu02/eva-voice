@@ -306,7 +306,7 @@ export const VoiceAssistant = () => {
       <p className="text-lg text-muted-foreground">{interimTranscript}</p>
     </div>
   )}
-  
+
   {isLoading && (
     <div className="text-center mb-8 mt-8">
       <div className="flex space-x-2 justify-center">
@@ -318,31 +318,34 @@ export const VoiceAssistant = () => {
   )}
 
   <div className="fixed bottom-0 left-100 right-100 p-4 bg-gradient pt-20">
-    <div className="text-center mt-40">
-      <div className="relative flex items-center space-x-2 bg-muted p-2 rounded-lg border border-zinc-700 bg-zinc-900">
-        <div className="flex space-x-4">
-          <button
-            onClick={toggleRecording}
-            className={cn(
-              "p-4 rounded-full flex items-center justify-center",
-              isRecording
-                ? "bg-red-500 text-white hover:bg-red-600"
-                : "bg-blue-500 text-white hover:bg-blue-600"
-            )}
-          >
-            {isRecording ? (
-              <MicOff className="h-6 w-6" />
-            ) : (
-              <Mic className="h-6 w-6" />
-            )}
-          </button>
-
-          <button
-            onClick={toggleInputMode}
-            className="p-4 rounded-full bg-muted text-foreground hover:bg-muted/80"
-          >
-            <Keyboard className="h-6 w-6" />
-          </button>
+    <div className="text-center  mt-40">
+      <div className="relative">
+        <div className="absolute -inset-2 rounded-lg bg-[conic-gradient(at_bottom_right,_var(--tw-gradient-stops))] from-gray-600 via-fuchsia-600 to-blue-600 opacity-50 blur-2xl"></div>
+        <div className="relative flex items-center space-x-2 bg-muted p-2 rounded-lg border border-zinc-700 bg-zinc-900">
+          <div className="flex space-x-4">
+            <button
+              onClick={toggleRecording}
+              className={cn(
+                "p-4 rounded-full flex items-center justify-center",
+                isRecording 
+                  ? "bg-red-500 text-white hover:bg-red-600" 
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              )}
+            >
+              {isRecording ? (
+                <MicOff className="h-6 w-6" />
+              ) : (
+                <Mic className="h-6 w-6" />
+              )}
+            </button>
+            
+            <button
+              onClick={toggleInputMode}
+              className="p-4 rounded-full bg-muted text-foreground hover:bg-muted/80"
+            >
+              <Keyboard className="h-6 w-6" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
