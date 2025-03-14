@@ -320,8 +320,8 @@ export const VoiceAssistant = () => {
               </div>
             )}
             
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient pt-20">
-              <div className="text-center mt-40">
+            <div className="fixed bottom-0 left-100 right-100 p-4 bg-gradient pt-20">
+               <div className="text-center  mt-40">
                 <div className="relative">
                   <div className="absolute -inset-2 rounded-lg bg-[conic-gradient(at_bottom_right,_var(--tw-gradient-stops))] from-gray-600 via-fuchsia-600 to-blue-600 opacity-50 blur-2xl"></div>
                   <div className="relative flex items-center space-x-2 bg-muted p-2 rounded-lg border border-zinc-700 bg-zinc-900">
