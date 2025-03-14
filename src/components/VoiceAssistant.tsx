@@ -317,7 +317,6 @@ export const VoiceAssistant = () => {
     </div>
   )}
 
-  <div className=" bg-gradient-to-t from-background to-transparent p-0 m-0">
    <div className="fixed bottom-0 left-100 right-100 p-4 pt-20">
     <div className="text-center  mt-40">
       <div className="relative">
@@ -350,7 +349,6 @@ export const VoiceAssistant = () => {
         </div>
       </div>
     </div>
-  </div>
   </div>
 </div>
 
