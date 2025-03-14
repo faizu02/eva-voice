@@ -271,7 +271,7 @@ export const VoiceAssistant = () => {
     <div className="min-h-screen flex flex-col">
       <div className="container max-w-4xl mx-auto p-4 pt-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-zinc-400 via-blue-450 to-blue-500 bg-clip-text text-transparent">
             EVA
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -355,7 +355,6 @@ export const VoiceAssistant = () => {
         ) : (
           // Keyboard Mode UI
           <>
-            <div className=" bg-zinc-900 p-0 m-0">
             <div className="flex-1 overflow-auto mb-20">
               <div className="space-y-4 max-w-3xl mx-auto">
                 {messages.map((message, index) => (
@@ -382,7 +381,6 @@ export const VoiceAssistant = () => {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-            </div>
             </div>
 
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-20">
